@@ -352,7 +352,7 @@ public:
   WeakObject() {}
   template<typename U> WeakObject(const Object<U>& o)
   : _ptr(o._obj) {}
-  Object<T> lock() { return Object<T>(_ptr.lock());}
+  Object<T> lock() const { return Object<T>(_ptr.lock());}
   boost::weak_ptr<GenericObject> _ptr;
 };
 using AnyWeakObject = WeakObject<Empty>;

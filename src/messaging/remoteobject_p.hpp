@@ -39,7 +39,9 @@ namespace qi {
     RemoteObject();
     RemoteObject(unsigned int service, qi::MessageSocketPtr socket = qi::MessageSocketPtr());
     //deprecated
-    RemoteObject(unsigned int service, unsigned int object, qi::MetaObject metaObject, qi::MessageSocketPtr socket = qi::MessageSocketPtr());
+    RemoteObject(unsigned int service, unsigned int object, qi::MetaObject metaObject,
+      qi::MessageSocketPtr socket = qi::MessageSocketPtr(),
+      boost::optional<PtrUid> ptrUid = boost::none);
     ~RemoteObject();
 
     unsigned int nextId() { return ++_nextId; }

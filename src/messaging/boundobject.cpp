@@ -17,6 +17,7 @@ namespace qi {
 
   static AnyReference forwardEvent(const GenericFunctionParameters& params,
                                    unsigned int service, unsigned int object,
+                                   PtrUid destination,
                                    unsigned int event, Signature sig,
                                    MessageSocketPtr client,
                                    boost::weak_ptr<ObjectHost> context,
@@ -76,6 +77,7 @@ namespace qi {
     msg.setFunction(event);
     msg.setType(Message::Type_Event);
     msg.setObject(object);
+    msg.setDestinationId(destination);
     client->send(std::move(msg));
     return AnyReference();
   }
@@ -153,7 +155,7 @@ namespace qi {
     if (!ms)
       throw std::runtime_error("No such signal");
     QI_ASSERT(_currentSocket);
-    AnyFunction mc = AnyFunction::fromDynamicFunction(boost::bind(&forwardEvent, _1, _serviceId, _objectId, eventId, ms->parametersSignature(), _currentSocket, weakPtr(), ""));
+    AnyFunction mc = AnyFunction::fromDynamicFunction(boost::bind(&forwardEvent, _1, _serviceId, _objectId, _object.ptrUid(), eventId, ms->parametersSignature(), _currentSocket, weakPtr(), ""));
     qi::Future<SignalLink> linking = _object.connect(eventId, mc);
     auto& linkEntry = _links[_currentSocket][remoteSignalLinkId];
     linkEntry = RemoteSignalLink(linking, eventId);
@@ -169,7 +171,7 @@ namespace qi {
     if (!ms)
       throw std::runtime_error("No such signal");
     QI_ASSERT(_currentSocket);
-    AnyFunction mc = AnyFunction::fromDynamicFunction(boost::bind(&forwardEvent, _1, _serviceId, _objectId, eventId, ms->parametersSignature(), _currentSocket, weakPtr(), signature));
+    AnyFunction mc = AnyFunction::fromDynamicFunction(boost::bind(&forwardEvent, _1, _serviceId, _objectId, _object.ptrUid(), eventId, ms->parametersSignature(), _currentSocket, weakPtr(), signature));
     qi::Future<SignalLink> linking = _object.connect(eventId, mc);
     auto& linkEntry = _links[_currentSocket][remoteSignalLinkId];
     linkEntry = RemoteSignalLink(linking, eventId);

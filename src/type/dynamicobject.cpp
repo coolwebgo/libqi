@@ -473,7 +473,7 @@ namespace qi
     return AnyObject(go, other);
   }
 
-  AnyObject makeDynamicAnyObject(DynamicObject *obj, bool destroyObject, // TODO: take the ptruid from the obj
+  AnyObject makeDynamicAnyObject(DynamicObject *obj, bool destroyObject,
     const boost::optional<PtrUid>& ptrUid,
     boost::function<void (GenericObject*)> onDelete)
   {

@@ -2,18 +2,18 @@
 **  Copyright (C) 2012 Aldebaran Robotics
 **  See COPYING for the license
 */
-#include <cstring>
+#include "message.hpp"
 
+#include <cstring>
 #include <boost/make_shared.hpp>
 #include <boost/container/small_vector.hpp>
 
+
+#include <boost/cstdint.hpp>
 #include <qi/assert.hpp>
 #include <qi/anyvalue.hpp>
-#include "message.hpp"
-
 #include <qi/atomic.hpp>
 #include <qi/log.hpp>
-#include <boost/cstdint.hpp>
 #include <qi/types.hpp>
 #include <qi/buffer.hpp>
 #include <qi/binarycodec.hpp>
@@ -114,13 +114,14 @@ namespace qi
 
   std::ostream& operator<<(std::ostream& os, const qi::Message& msg)
   {
-    os << "message {" << std::endl
-       << "  size=" << msg.header().size << "," << std::endl
-       << "  id  =" << msg.id() << "," << std::endl
-       << "  vers=" << msg.version() << "," << std::endl
-       << "  type=" << qi::Message::typeToString(msg.type()) << "," << std::endl
-       << "  serv=";
+    os << "message { "
+       << "size = " << msg.header().size << ", "
+       << "id = " << msg.id() << ", "
+       << "vers = " << msg.version() << ", "
+       << "type = " << qi::Message::typeToString(msg.type()) << ", "
+       << "destination PtrUid = " << msg.destinationUID() << ", ";
 
+    os << "service = ";
     if (msg.service() == qi::Message::Service_ServiceDirectory)
     {
       os << "ServiceDirectory";
@@ -130,9 +131,7 @@ namespace qi
       os << msg.service();
     }
 
-    os << "," << std::endl
-       << "  obje=";
-
+    os << ", object = ";
     if (msg.object() == qi::Message::GenericObject_Main)
     {
       os << "main";
@@ -142,8 +141,7 @@ namespace qi
       os << msg.object();
     }
 
-    os << std::endl << "  acti=";
-
+    os << ", action = ";
     const char* s = qi::Message::actionToString(msg.action(), msg.service());
     if (s != 0)
     {
@@ -154,10 +152,9 @@ namespace qi
       os << msg.action();
     }
 
-    os << "," << std::endl
-       << "  data=" << std::endl;
-    qi::detail::printBuffer(os, msg.buffer());
-    os << std::endl << "}";
+    os << ", data = ";
+    //qi::detail::printBuffer(os, msg.buffer()); // TODO: this triggers ios asserts, rewrite it later
+    os << " }";
     return os;
   }
 
@@ -266,7 +263,7 @@ namespace qi
       qiLogDebug() << "Creating unregistered object " << osi.serviceId << '/' << osi.objectId
                    << " ptruid = '" << (osi.objectPtrUid ? *osi.objectPtrUid : PtrUid{}) << "' on "
                    << context.get();
-      RemoteObject* ro = new RemoteObject(osi.serviceId, osi.objectId, osi.metaObject, context);
+      RemoteObject* ro = new RemoteObject(osi.serviceId, osi.objectId, osi.metaObject, context, osi.objectPtrUid);
       AnyObject o = makeDynamicAnyObject(ro, true, osi.objectPtrUid, &onProxyLost);
       qiLogDebug() << "New object is " << o.asGenericObject() << "on ro " << ro;
       QI_ASSERT(o);

@@ -19,33 +19,34 @@
 #include <qi/assert.hpp>
 #include <ka/scoped.hpp>
 #include <boost/weak_ptr.hpp>
+#include <boost/optional.hpp>
+#include <boost/optional/optional_io.hpp>
 
 namespace qi {
 
   class MessageAddress {
   public:
-    MessageAddress()
-      : messageId(0)
-      , serviceId(0)
-      , objectId(0)
-      , functionId(0)
-    {}
+    MessageAddress() = default;
 
     MessageAddress(unsigned int messageId,
                    unsigned int serviceId,
                    unsigned int objectId,
-                   unsigned int functionId)
+                   unsigned int functionId,
+                   boost::optional<PtrUid> destinationUID = boost::none
+                   )
       : messageId(messageId)
       , serviceId(serviceId)
       , objectId(objectId)
       , functionId(functionId)
+      , destinationUID(destinationUID)
     {}
 
-    unsigned int messageId;
-    unsigned int serviceId;
-    unsigned int objectId;
-    unsigned int functionId;
-    KA_GENERATE_FRIEND_REGULAR_OPS_4(MessageAddress, messageId, serviceId, objectId, functionId)
+    unsigned int messageId = 0;
+    unsigned int serviceId = 0;
+    unsigned int objectId = 0;
+    unsigned int functionId = 0;
+    boost::optional<PtrUid> destinationUID; // Extension used if Capability DirectMessageDispatch is allowed.
+    KA_GENERATE_FRIEND_REGULAR_OPS_5(MessageAddress, messageId, serviceId, objectId, functionId, destinationUID)
   };
 
 
@@ -180,6 +181,7 @@ namespace qi {
       _header.service = address.serviceId;
       _header.object = address.objectId;
       _header.action = address.functionId;
+      _destinationUID = address.destinationUID;
     }
 
     void setId(unsigned int id)
@@ -322,22 +324,28 @@ namespace qi {
 
     MessageAddress address() const
     {
-      return MessageAddress(_header.id, _header.service, _header.object, _header.action);
+      return MessageAddress(_header.id, _header.service, _header.object, _header.action, _destinationUID);
     }
 
     Header& header() {return _header;}
-
     const Header& header() const {return _header;}
 
     bool operator==(const Message& b) const
     {
-      return _header == b._header && signature == b.signature && _buffer == b._buffer;
+      return _header == b._header
+          && signature == b.signature
+          && _buffer == b._buffer
+          && _destinationUID == b._destinationUID;
     }
+
+    boost::optional<PtrUid> destinationUID() const { return _destinationUID; }
+    void setDestinationId(const boost::optional<PtrUid>& id) { _destinationUID = id; }
 
   private:
     Buffer _buffer;
     std::string signature;
     Header _header;
+    boost::optional<PtrUid> _destinationUID;
 
     void encodeBinary(const qi::AutoAnyReference& ref,
                       SerializeObjectCallback onObject,
@@ -352,7 +360,7 @@ namespace qi {
   inline std::ostream& operator<<(std::ostream& os, const qi::MessageAddress &address)
   {
     os << "{" << address.serviceId << "." << address.objectId << "." << address.functionId
-       << ", id:" << address.messageId << "}";
+       << ", id:" << address.messageId << ", destination: " << address.destinationUID << "}";
     return os;
   }
 

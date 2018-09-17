@@ -58,13 +58,14 @@ namespace qi {
     //fetchMetaObject should be called to make sure the metaObject is valid.
   }
 
-  RemoteObject::RemoteObject(unsigned int service, unsigned int object, qi::MetaObject metaObject, MessageSocketPtr socket)
+  RemoteObject::RemoteObject(unsigned int service, unsigned int object, qi::MetaObject metaObject,
+                             MessageSocketPtr socket, boost::optional<PtrUid> ptrUid)
     : ObjectHost(service)
     , _socket()
     , _service(service)
     , _object(object)
     , _linkMessageDispatcher(0)
-    , _self(makeDynamicAnyObject(this, false))
+    , _self(makeDynamicAnyObject(this, false, ptrUid))
   {
     setMetaObject(metaObject);
     if (socket)
@@ -343,6 +344,7 @@ namespace qi {
     msg.setService(_service);
     msg.setObject(_object);
     msg.setFunction(method);
+    msg.setDestinationId(_self.ptrUid());
 
     //error will come back as a error message
     const auto msgId = msg.id();
