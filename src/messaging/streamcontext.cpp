@@ -7,6 +7,9 @@
 
 #include "streamcontext.hpp"
 
+#include "remoteobject_p.hpp"
+#include "boundobject.hpp"
+
 namespace qi
 {
   namespace capabilityname
@@ -16,6 +19,7 @@ namespace qi
     char const * const messageFlags          = "MessageFlags";
     char const * const remoteCancelableCalls = "RemoteCancelableCalls";
     char const * const objectPtrUid          = "ObjectPtrUID";
+    char const * const directMessageDispatch  = "DirectMessageDispatch";
   }
 
 
@@ -114,6 +118,7 @@ static void initCapabilities()
   , { capabilityname::metaObjectCache      , AnyValue::from(false) }
   , { capabilityname::remoteCancelableCalls, AnyValue::from(true)  }
   , { capabilityname::objectPtrUid         , AnyValue::from(true)  }
+  , { capabilityname::directMessageDispatch , AnyValue::from(false)  }
   };
 
   _defaultCapabilities = new CapabilityMap(defaultCaps);
@@ -146,6 +151,14 @@ const CapabilityMap& StreamContext::defaultCapabilities()
 {
   QI_ONCE(initCapabilities());
   return *_defaultCapabilities;
+}
+
+bool StreamContext::isDirectDispatchAllowed() const
+{
+  // TODO: cache the value? maybe not, as it might change at runtime :P
+  const bool hasObjectPtrUidCapability = sharedCapability(capabilityname::objectPtrUid, false);
+  const bool hasDirectMessageRoutageCapability = sharedCapability(capabilityname::directMessageDispatch, false);
+  return hasObjectPtrUidCapability && hasDirectMessageRoutageCapability;
 }
 
 }

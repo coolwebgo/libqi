@@ -7,10 +7,10 @@
 #ifndef _QI_MESSAGING_STREAMCONTEXT_HPP_
 #define _QI_MESSAGING_STREAMCONTEXT_HPP_
 
+#include <map>
 #include <qi/api.hpp>
 #include <qi/anyvalue.hpp>
 #include <qi/type/metaobject.hpp>
-#include <map>
 
 namespace qi
 {
@@ -37,6 +37,22 @@ using CapabilityMap = std::map<std::string, AnyValue>;
 
     // Capability: Objects allow unique identification using Ptruid.
     QI_API extern char const * const objectPtrUid;
+
+    // Capability: Messages can be routed to a specific handler,
+    // which can be identified using a PtrUid stored in the message.
+    //
+    // This capability requires the objectPtrUid capability to augment the messages
+    // with the ptrUid identifying uniquely the destination object.
+    // Therefore, to enable this capability, the following must be true on both sides:
+    //  - objectPtrUid must be enabled and available;
+    //  - directMessageDispatch must be enabled and available;
+    //
+    // When disabled the legacy dispatching system will be used.
+    //
+    // This mechanism replaces the legacy dispatching system that would send the message to objects
+    // which were not the destination because of the lack of capacity to identify objects
+    // uniquely in the protocol.
+    QI_API extern char const * const directMessageDispatch;
   }
 
 /** Store contextual data associated to one point-to-point point transport.
@@ -84,9 +100,6 @@ public:
   * If present on both sides with same type, return the lesser of both values.
   * Otherwise, throws.
   */
-  boost::optional<AnyValue> sharedCapability(const std::string& key) const;
-
-  /// Similar to above, but replace error conditions by default value.
   template<typename T>
   T sharedCapability(const std::string& key, const T& defaultValue) const;
 
@@ -100,6 +113,8 @@ public:
   /// Default capabilities injected on all transports upon connection
   static const CapabilityMap& defaultCapabilities();
 
+  /// @returns true if both sides can handle identifying call message destinations using PtrUid.
+  bool isDirectDispatchAllowed() const;
 
 protected:
   qi::Atomic<int> _cacheNextId;
