@@ -28,6 +28,9 @@ namespace qi {
   class ServiceDirectoryClient;
   class ServiceDirectory;
 
+  class BoundOBject;
+  using BoundObjectWeakPtr = boost::weak_ptr<BoundObject>;
+
   // (service, linkId)
   struct RemoteSignalLink
   {
@@ -52,6 +55,7 @@ namespace qi {
     virtual void onMessage(const qi::Message &msg, MessageSocketPtr socket) = 0;
     virtual void onSocketDisconnected(qi::MessageSocketPtr socket, std::string error) = 0;
     virtual PtrUid ptrUid() const = 0;
+    virtual BoundObjectWeakPtr getWeakPtr() = 0;
   };
 
   //Bound Object, represent an object bound on a server
@@ -97,6 +101,7 @@ namespace qi {
     qi::Future<AnyValue> property(const AnyValue& name);
     Future<void>   setProperty(const AnyValue& name, AnyValue value);
     std::vector<std::string> properties();
+    BoundObjectWeakPtr getWeakPtr() override { return weakPtr(); }
   public:
     /*
     * Returns the last socket that sent a message to this object.
@@ -155,7 +160,6 @@ namespace qi {
     //Event handling (no lock needed)
     BySocketServiceSignalLinks  _links;
 
-    boost::mutex _callMutex;
   private:
     qi::MessageSocketPtr _currentSocket;
     unsigned int           _serviceId;
@@ -165,7 +169,8 @@ namespace qi {
     qi::MetaCallType       _callType;
     boost::optional<boost::weak_ptr<qi::ObjectHost>> _owner;
     // prevents parallel onMessage on self execution and protects the current socket
-    mutable boost::recursive_mutex           _mutex;
+    mutable boost::mutex _callMutex;
+    mutable boost::recursive_mutex _mutex;
     boost::function<void (MessageSocketPtr, std::string)> _onSocketDisconnectedCallback;
 
     static qi::Atomic<unsigned int> _nextId;

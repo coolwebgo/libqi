@@ -29,6 +29,32 @@ namespace qi
   {
     return makeTcpMessageSocket(protocol, eventLoop);
   }
+
+  namespace {
+    // Direct Message Routage capability: Append the destination id at the back of the buffer.
+    void extendDirectMessageRoutageCapability(MessageSocket& socket, Message& msg)
+    {
+      if (detail::canBeDirectlyDispatched(msg, socket))
+      {
+        const auto maybeDestinationUid = msg.destinationUID();
+        QI_ASSERT_TRUE(maybeDestinationUid); // TODO: replace by ka::empty once available
+        const auto destinationUid = maybeDestinationUid.get();
+        Buffer destinationIDBuffer;
+        destinationIDBuffer.write(begin(destinationUid), size(destinationUid));
+        auto msgBuffer = msg.extractBuffer();
+        msgBuffer.addSubBuffer(std::move(destinationIDBuffer));
+        msg.setBuffer(std::move(msgBuffer));
+      }
+    }
+  }
+
+  bool MessageSocket::send(Message msg)
+  {
+    extendDirectMessageRoutageCapability(*this, msg);
+    qiLogDebug() << "Sending " << msg;
+    return sendImpl(msg);
+  }
+
 }
 
 #if BOOST_COMP_MSVC

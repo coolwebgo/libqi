@@ -34,31 +34,116 @@ namespace qi {
     close();
   }
 
+  void Server::registerAllServicesForMessageReception(const MessageSocketPtr& socket)
+  {
+    boost::mutex::scoped_lock lock(_boundObjectsMutex);
+    for (auto&& boundObjectSlot : _boundObjects)
+    {
+      auto& object = boundObjectSlot.second;
+      socket->directDispatchRegistry().registerDestination(*object);
+    }
+  }
+
+  void Server::unregisterAllServicesForMessageReception(const MessageSocketPtr& socket)
+  {
+    boost::mutex::scoped_lock lock(_boundObjectsMutex);
+    for (auto&& boundObjectSlot : _boundObjects)
+    {
+      auto& object = boundObjectSlot.second;
+      socket->directDispatchRegistry().unregisterDestination(*object);
+    }
+  }
+
+  void Server::registerServiceForAllSocketsMessageReception(BoundObject & object)
+  {
+    boost::recursive_mutex::scoped_lock lock(_socketsMutex);
+    for (auto&& socketSubscribersSlot : _subscribers)
+    {
+      auto&& socket = socketSubscribersSlot.first;
+      socket->directDispatchRegistry().registerDestination(object);
+    }
+  }
+
+  void Server::unregisterServiceForAllSocketsMessageReception(const BoundObject & object)
+  {
+    boost::recursive_mutex::scoped_lock lock(_socketsMutex);
+    for (auto&& socketSubscribersSlot : _subscribers)
+    {
+      auto&& socket = socketSubscribersSlot.first;
+      socket->directDispatchRegistry().unregisterDestination(object);
+    }
+  }
+
   bool Server::addObject(unsigned int id, qi::AnyObject obj)
   {
     if (!obj)
       return false;
-    BoundAnyObject bop = makeServiceBoundAnyObject(id, obj, _defaultCallType);
-    return addObject(id, bop);
+
+    boost::mutex::scoped_lock sl(_boundObjectsMutex);
+    // If the object is not registered with this id, it might have been
+    // registered previously with another id.
+    // To avoid making different bound objects for the same real object,
+    // we have to look for bound objects having the same PtrUid
+    // as it identifies the real object being exposed
+    // (at least for this process).
+    if (!unsafeFindBoundObject(id) && !unsafeFindBoundObject(obj.ptrUid()))
+    {
+        // The object have never been registered here before:
+        // we need to create a new bound object associated to it.
+        auto boundObject = makeServiceBoundAnyObject(id, obj, _defaultCallType);
+        unsafeStoreBoundObject(id, std::move(boundObject));
+        return true;
+    }
+    return false;
   }
 
   bool Server::addObject(unsigned int id, qi::BoundAnyObject obj)
   {
     if (!obj)
       return false;
-    //register into _boundObjects
+
+    boost::mutex::scoped_lock sl(_boundObjectsMutex);
+    // If the object is not registered with this id, it might have been
+    // registered previously with another id.
+    // To avoid making different bound objects for the same real object,
+    // we have to look for bound objects having the same PtrUid
+    // as it identifies the real object being exposed
+    // (at least for this process).
+    if (!unsafeFindBoundObject(id) && !unsafeFindBoundObject(obj->ptrUid()))
     {
-      boost::mutex::scoped_lock sl(_boundObjectsMutex);
-      BoundAnyObjectMap::iterator it;
-      it = _boundObjects.find(id);
-      if (it != _boundObjects.end()) {
-        return false;
-      }
-      _boundObjects[id] = obj;
+      // The object have never been registered here before, register it.
+      unsafeStoreBoundObject(id, std::move(obj));
       return true;
+
     }
+    return false;
   }
 
+  qi::BoundAnyObject Server::unsafeFindBoundObject(unsigned int id)
+  {
+    const auto it = _boundObjects.find(id);
+    if (it != _boundObjects.end())
+      return it->second;
+    else
+      return {};
+  }
+
+  qi::BoundAnyObject Server::unsafeFindBoundObject(const PtrUid& ptruid)
+  {
+    for (auto&& slot : _boundObjects)
+    {
+      if (slot.second->ptrUid() == ptruid)
+        return slot.second;
+    }
+    return {};
+  }
+
+  void Server::unsafeStoreBoundObject(unsigned int id, qi::BoundAnyObject obj)
+  {
+    QI_ASSERT_TRUE(obj);
+    _boundObjects[id] = obj;
+    registerServiceForAllSocketsMessageReception(*obj);
+  }
 
   bool Server::removeObject(unsigned int idx)
   {
@@ -72,6 +157,7 @@ namespace qi {
       }
       removedObject = it->second;
       _boundObjects.erase(idx);
+      unregisterServiceForAllSocketsMessageReception(*removedObject);
     }
     removedObject.reset();
     return true;
@@ -102,8 +188,13 @@ namespace qi {
     QI_ASSERT(subscriber.messageReady == qi::SignalBase::invalidSignalLink &&
            "Connecting a signal that already exists.");
 
+    registerAllServicesForMessageReception(socket);
+
     subscriber.messageReady = socket->messageReady.connect(
-        track([=](const Message& msg) { onMessageReady(msg, socket); }, this));
+        track([=](const Message& msg) {
+          if(!detail::canBeDirectlyDispatched(msg, *socket)) // Skip dispatching if it will be handled by the direct dispatching system.
+            onMessageReady(msg, socket);
+        }, this));
   }
 
   void Server::onTransportServerNewConnection(MessageSocketPtr socket, bool startReading)
@@ -310,10 +401,10 @@ namespace qi {
         // remoteobject host, or to a remoteobject, using the same socket.
         qiLogVerbose() << "No service for " << msg.address();
         if (msg.object() > Message::GenericObject_Main
-            || msg.type() == Message::Type_Reply
-            || msg.type() == Message::Type_Event
-            || msg.type() == Message::Type_Error
-            || msg.type() == Message::Type_Canceled)
+          || msg.type() == Message::Type_Reply
+          || msg.type() == Message::Type_Event
+          || msg.type() == Message::Type_Error
+          || msg.type() == Message::Type_Canceled)
           return;
         // ... but only if the object id is >main
         qi::Message retval(Message::Type_Error, msg.address());

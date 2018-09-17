@@ -11,6 +11,7 @@
 #include <qi/api.hpp>
 #include <qi/anyvalue.hpp>
 #include <qi/type/metaobject.hpp>
+#include "directdispatch.hpp"
 
 namespace qi
 {
@@ -116,11 +117,17 @@ public:
   /// @returns true if both sides can handle identifying call message destinations using PtrUid.
   bool isDirectDispatchAllowed() const;
 
+  DirectDispatchRegistry& directDispatchRegistry() BOOST_NOEXCEPT
+  { return _directDispatchRegistry; }
+
+  const DirectDispatchRegistry& directDispatchRegistry() const BOOST_NOEXCEPT
+  { return _directDispatchRegistry; }
+
 protected:
   qi::Atomic<int> _cacheNextId;
   // Protects all storage
   mutable boost::mutex  _contextMutex;
-
+  DirectDispatchRegistry _directDispatchRegistry;
   CapabilityMap _remoteCapabilityMap; // remote capabilities we received
   CapabilityMap _localCapabilityMap; // memory of what we advertisedk
 

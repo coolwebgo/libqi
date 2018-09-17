@@ -15,6 +15,7 @@
 # include <string>
 # include "messagedispatcher.hpp"
 # include "streamcontext.hpp"
+# include "directdispatch.hpp"
 
 namespace qi {
   namespace detail {
@@ -72,7 +73,7 @@ namespace qi
     virtual qi::FutureSync<void> connect(const qi::Url &url) = 0;
     virtual qi::FutureSync<void> disconnect()                = 0;
 
-    virtual bool send(qi::Message msg) = 0;
+    bool send(qi::Message msg);
 
     /// Start reading if is not already reading.
     /// Must be called once if the socket is obtained through TransportServer::newConnection()
@@ -95,10 +96,13 @@ namespace qi
       _dispatcher.messagePendingDisconnect(serviceId, objectId, linkId);
     }
 
+
   protected:
     qi::EventLoop* _eventLoop;
     Strand _signalsStrand; // Must be declared before the MessageDispatcher and the signals.
     qi::MessageDispatcher _dispatcher;
+
+    virtual bool sendImpl(qi::Message msg) = 0;
 
   public:
     // C4251

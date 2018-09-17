@@ -325,6 +325,8 @@ set(QIM_C src/messaging/applicationsession.cpp
           src/messaging/authprovider.cpp
           src/messaging/boundobject.cpp
           src/messaging/boundobject.hpp
+          src/messaging/directdispatch.cpp
+          src/messaging/directdispatch.hpp
           src/messaging/clientauthenticator_p.hpp
           src/messaging/clientauthenticator.cpp
           src/messaging/gateway.cpp

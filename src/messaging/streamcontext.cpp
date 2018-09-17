@@ -118,7 +118,7 @@ static void initCapabilities()
   , { capabilityname::metaObjectCache      , AnyValue::from(false) }
   , { capabilityname::remoteCancelableCalls, AnyValue::from(true)  }
   , { capabilityname::objectPtrUid         , AnyValue::from(true)  }
-  , { capabilityname::directMessageDispatch , AnyValue::from(false)  }
+  , { capabilityname::directMessageDispatch , AnyValue::from(true)  }
   };
 
   _defaultCapabilities = new CapabilityMap(defaultCaps);

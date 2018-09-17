@@ -212,9 +212,9 @@ namespace qi {
       return doDisconnect();
     }
 
-    /// Returns `true` if we could ask to send the message.
-    /// One failure case (return `false`) is when the socket is not connected.
-    bool send(Message msg) override;
+    /// Returns true if the message was successfully sent (not necessarilly successfully received).
+    /// Returns false otherwise. For instance, this could occur if the socket is disconnected.
+    bool sendImpl(Message msg) override;
 
     Status status() const override
     {
@@ -559,7 +559,21 @@ namespace qi {
   {
     messageReady(msg);
     socketEvent(SocketEventData(msg));
-    _dispatcher.dispatch(msg);
+
+    bool dispatched = false;
+
+    // Direct Message Dispatch Capability: if possible, send the message directly to its identified destination.
+    if (detail::canBeDirectlyDispatched(msg, *this))
+    {
+      dispatched = _directDispatchRegistry.dispatchMessage(msg, this->shared_from_this());
+    }
+
+    if (!dispatched)
+    {
+      _dispatcher.dispatch(msg); // Old way to dispatch, only kept for compatibility when connected
+                                 // to a process not handling direct dispatch.
+    }
+
     return true;
   }
 
@@ -586,7 +600,7 @@ namespace qi {
   }
 
   template<typename N, typename S>
-  bool TcpMessageSocket<N, S>::send(Message msg)
+  bool TcpMessageSocket<N, S>::sendImpl(Message msg)
   {
     boost::recursive_mutex::scoped_lock lock(_stateMutex);
     if (getStatus() != Status::Connected)

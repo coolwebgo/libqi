@@ -2,8 +2,9 @@
 **
 ** Copyright (C) 2018 Softbank Robotics Europe
 */
-
-#include <gtest/gtest.h>
+#include <condition_variable>
+#include <thread>
+#include <chrono>
 #include <qi/application.hpp>
 #include <qi/anyobject.hpp>
 #include <qi/session.hpp>
@@ -11,9 +12,9 @@
 #include <qi/anymodule.hpp>
 #include <testsession/testsessionpair.hpp>
 #include <qi/testutils/testutils.hpp>
-#include <condition_variable>
-#include <thread>
-#include <chrono>
+#include "remoteperformanceservice.hpp"
+
+#include <gtest/gtest.h>
 
 qiLogCategory("test");
 
@@ -752,3 +753,79 @@ TEST(SendObject, PropertySetWithNullObjectNotifiesSubscribers)
   ASSERT_TRUE(test::finishesWithValue(fut));
   ASSERT_FALSE(fut.value());
 }
+
+
+struct MyObject {
+  int foo() {
+    return 42;
+  }
+};
+
+QI_REGISTER_OBJECT(MyObject, foo)
+
+namespace {
+
+  void testCallDurationIndependantFromRemoteObjectsCount(qi::SessionPtr clientSession)
+  {
+    qi::AnyObject s = clientSession->service("RemotePerformanceService").value();
+
+    const int MAX = 1000;
+
+    qi::AnyObject myObject = boost::make_shared<MyObject>();
+    qiLogInfo() << "==== myObject = { " << myObject.ptrUid() << "} ====";
+    s.call<void>("setObject", myObject);
+    const auto test1_ms = s.call<long>("measureCallDuration", "foo");
+
+    qiLogInfo() << "Sending " << MAX << " Objects ...";
+    std::vector<qi::AnyObject> objectList;
+    objectList.reserve(MAX);
+    for (int i = 0; i < MAX; i++)
+    {
+      objectList.push_back(myObject);
+    }
+    s.call<void>("setObjectList", objectList);
+    qiLogInfo() << "Sending " << MAX << " Objects - DONE";
+    const auto test2_ms = s.call<long>("measureCallDuration", "foo");
+
+    qiLogInfo() << "Clearing " << MAX << " Objects ...";
+    s.call<void>("clear");
+    objectList.clear();
+    qiLogInfo() << "Clearing " << MAX << " Objects - DONE";
+    s.call<void>("setObject", myObject);
+    const auto test3_ms = s.call<long>("measureCallDuration", "foo");
+
+
+    const auto highestTolerableCallTime = test1_ms * 10;
+    EXPECT_LE(test2_ms, highestTolerableCallTime);
+    EXPECT_LE(test3_ms, highestTolerableCallTime);
+  }
+
+}
+
+TEST(SendObject, callDurationIndependantFromRemoteObjectsCount)
+{
+  TestSessionPair sessions;
+
+  qi::AnyObject myService = boost::make_shared<RemotePerformanceService>();
+  sessions.server()->registerService("RemotePerformanceService", myService);
+
+  testCallDurationIndependantFromRemoteObjectsCount(sessions.client());
+}
+
+TEST(SendObject, remoteProcessCallDurationIndependantFromRemoteObjectsCount)
+{
+  using namespace qi;
+
+  const Url serviceUrl{ "tcp://127.0.0.1:54321" };
+  test::ScopedProcess _{ path::findBin("remoteserviceowner"),
+  { "--qi-standalone", "--qi-listen-url=" + serviceUrl.str() }
+  };
+
+  auto client = makeSession();
+  client->connect(serviceUrl);
+
+  testCallDurationIndependantFromRemoteObjectsCount(client);
+
+}
+
+

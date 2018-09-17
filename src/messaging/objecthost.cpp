@@ -60,6 +60,13 @@ BoundAnyObject ObjectHost::recursiveFindObject(uint32_t objectId)
 
 void ObjectHost::onMessage(const qi::Message &msg, MessageSocketPtr socket)
 {
+  if (detail::canBeDirectlyDispatched(msg, *socket)
+    && msg.destinationUID())
+  {
+    qiLogWarning() << "Message not directly dispatched when it should have been"
+                      "- fallback to legacy message dispatching. Message: "
+                   << msg;
+  }
   BoundAnyObject obj{recursiveFindObject(msg.object())};
   if (!obj)
   {
@@ -87,6 +94,9 @@ unsigned int ObjectHost::addObject(BoundAnyObject obj, StreamContext* remoteRef,
   QI_ASSERT(_objectMap.find(id) == _objectMap.end());
   _objectMap[id] = obj;
   _remoteReferences[remoteRef].push_back(id);
+
+  remoteRef->directDispatchRegistry().registerDestination(*obj);
+
   return id;
 }
 

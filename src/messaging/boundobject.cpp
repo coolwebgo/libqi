@@ -236,15 +236,16 @@ namespace qi {
       {
         std::stringstream ss;
         ss << "Cannot negotiate QiMessaging connection: "
-           << "remote end doesn't support binary protocol v" << msg.version();
+            << "remote end doesn't support binary protocol v" << msg.version();
         serverResultAdapter(qi::makeFutureError<AnyReference>(ss.str()), Signature(),
                             _gethost(), socket, msg.address(), Signature(), CancelableKitWeak());
         return;
       }
+      qiLogDebug() << this << " ServiceBoundObject::onMessage : " << msg;
 
-      qiLogDebug() << this << "(" << service() << '/' << _objectId << ") msg " << msg.address() << " " << msg.buffer().size();
-
-      if (msg.object() > _objectId)
+      if (msg.object() > _objectId
+      && (!msg.destinationUID() || msg.destinationUID().get() != this->ptrUid())
+      )
       {
         qiLogDebug() << "Passing message to children";
         ObjectHost::onMessage(msg, socket);
@@ -360,7 +361,7 @@ namespace qi {
         // Property accessors are insecure to call synchronously
         // because users can customize them.
         const bool isUserDefinedFunction =
-            !isSpecialFunction || funcId == 5 /* property */ || funcId == 6 /* setProperty */;
+          !isSpecialFunction || funcId == 5 /* property */ || funcId == 6 /* setProperty */;
         qi::MetaCallType callType = isUserDefinedFunction ? _callType : MetaCallType_Direct;
 
         qi::Signature sig = returnSignature.empty() ? Signature() : Signature(returnSignature);
@@ -377,9 +378,11 @@ namespace qi {
           retSig = mm->returnSignature();
         _currentSocket.reset();
 
+        qiLogDebug() << "Received and processed: " << msg;
+
         fut.connect(boost::bind<void>
-                    (&ServiceBoundObject::serverResultAdapter, _1, retSig, _gethost(), socket, msg.address(), sig,
-                     CancelableKitWeak(_cancelables), cancelRequested));
+          (&ServiceBoundObject::serverResultAdapter, _1, retSig, _gethost(), socket, msg.address(), sig,
+            CancelableKitWeak(_cancelables), cancelRequested));
       }
         break;
       case Message::Type_Post: {
@@ -681,6 +684,7 @@ namespace qi {
       qiLogDebug() << "Can't send call result: the socket has been disconnected";
       return;
     }
+    qiLogDebug() << "Replying to " << replyaddr;
     qi::Message ret(Message::Type_Reply, replyaddr);
     if (future.hasError()) {
       ret.setType(qi::Message::Type_Error);

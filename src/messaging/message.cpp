@@ -216,12 +216,29 @@ namespace qi
       }
 
       const unsigned int oid = host->nextId();
-      ServiceBoundObject* sbo =
-          new ServiceBoundObject(sid, oid, object, MetaCallType_Queued, true, context);
-      boost::shared_ptr<BoundObject> bo(sbo);
-      host->addObject(bo, strCtxt, oid);
-      qiLogDebug() << "Hooking " << oid <<" on " << host.get();
-      qiLogDebug() << "sbo " << sbo << "obj " << object.asGenericObject();
+      qiLogDebug() << "Serializing " << object.ptrUid() << " through stream-context " << strCtxt;
+      ServiceBoundObject* sbo = nullptr;
+      { // Make sure no other serialization is registering the same object in parallel.
+        auto boundObjectsRegistry = strCtxt->directDispatchRegistry().lockBoundObjectRegistry();
+        const auto foundBO = boundObjectsRegistry->find(object.ptrUid()); // Must live to the end of the scope.
+
+        if (foundBO)
+        { // Reuse the bound object already existing.
+          qiLogDebug() << "Serializing " << object.ptrUid() << " through stream-context " << strCtxt << " : already registered, recycling ==== ";
+          sbo = static_cast<ServiceBoundObject*>(foundBO.get());
+        }
+        else
+        { // We don't have a service bound object registered, we must create one:
+          auto newSbo = boost::make_shared<ServiceBoundObject>(sid, oid, object, MetaCallType_Queued, true, context);
+          sbo = newSbo.get();
+
+          host->addObject(newSbo, strCtxt, oid);
+          qiLogDebug() << "Hooking " << oid << " on host with &host = " << host.get();
+          qiLogDebug() << "sbo " << sbo << "obj with &obj = " << object.asGenericObject();
+        }
+      }
+      QI_ASSERT_TRUE(sbo != nullptr);
+
       // Transmit the metaObject augmented by ServiceBoundObject.
       ObjectSerializationInfo res;
       res.metaObject = sbo->metaObject(oid);
@@ -260,13 +277,37 @@ namespace qi
     {
       if (!context)
         throw std::runtime_error("Unable to deserialize object without a valid TransportSocket");
+
+      // Make sure no parallel operation adds/remove the same object for direct dispatch.
+      auto remoteObjectRegistry = context->directDispatchRegistry().lockRemoteObjectRegistry();
+
+      // Avoid creating another RemoteObject if it already exists for this socket.
+      if (osi.objectPtrUid)
+      {
+        if (auto registeredRemoteObject = remoteObjectRegistry->find(osi.objectPtrUid.get()))
+        {
+          qiLogDebug() << "Deserializing " << osi.objectPtrUid.get() << " : already registered, recycling";
+          return registeredRemoteObject->owner();
+        }
+        else
+        {
+          qiLogDebug() << "Deserializing " << osi.objectPtrUid.get() << " : new object";
+        }
+      }
+      else
+      {
+        qiLogDebug() << "Deserializing object with no ptruid : new object";
+      }
+
       qiLogDebug() << "Creating unregistered object " << osi.serviceId << '/' << osi.objectId
                    << " ptruid = '" << (osi.objectPtrUid ? *osi.objectPtrUid : PtrUid{}) << "' on "
                    << context.get();
+      // RemoteObject's constructor will do the registration of the object in the direct dispatch registry.
       RemoteObject* ro = new RemoteObject(osi.serviceId, osi.objectId, osi.metaObject, context, osi.objectPtrUid);
       AnyObject o = makeDynamicAnyObject(ro, true, osi.objectPtrUid, &onProxyLost);
       qiLogDebug() << "New object is " << o.asGenericObject() << "on ro " << ro;
       QI_ASSERT(o);
+      ro->setOwner(o);
       return o;
     }
   }

@@ -55,6 +55,12 @@ namespace qi {
     unsigned int service() const { return _service; }
     unsigned int object() const { return _object; }
 
+    AnyObject owner() const { return _owner.lock(); }
+    void setOwner(AnyObject owner) { _owner = owner; }
+    PtrUid remotePtrUid() const { return _self.ptrUid(); }
+
+    auto getWeakPtr() -> decltype(this->weakPtr()) { return weakPtr(); }
+
   protected:
     //TransportSocket.messagePending
     void onMessagePending(const qi::Message &msg);
@@ -77,13 +83,14 @@ namespace qi {
   protected:
     using LocalToRemoteSignalLinkMap = std::map<qi::uint64_t, RemoteSignalLinks>;
 
-    boost::synchronized_value<MessageSocketPtr>   _socket;
+    boost::synchronized_value<MessageSocketPtr>     _socket;
     unsigned int                                    _service;
     unsigned int                                    _object;
     boost::synchronized_value<std::map<int, qi::Promise<AnyReference>>> _promises;
     qi::SignalLink                                  _linkMessageDispatcher;
     qi::SignalLink                                  _linkDisconnected;
     qi::AnyObject                                   _self;
+    AnyWeakObject                                   _owner;
     boost::recursive_mutex                          _localToRemoteSignalLinkMutex;
     LocalToRemoteSignalLinkMap                      _localToRemoteSignalLink;
 
