@@ -42,28 +42,28 @@ namespace qi {
     }
   }
 
-  void DirectDispatchRegistry::registerDestination(RemoteObject& object) BOOST_NOEXCEPT
+  void DirectDispatchRegistry::registerRecipient(RemoteObject& object) BOOST_NOEXCEPT
   {
     invokeLogOnError(__FUNCTION__, [&]{
       _remoteObjectRegistry->add(object.remotePtrUid(), object);
     });
   }
 
-  void DirectDispatchRegistry::registerDestination(BoundObject & object) BOOST_NOEXCEPT
+  void DirectDispatchRegistry::registerRecipient(BoundObject & object) BOOST_NOEXCEPT
   {
     invokeLogOnError(__FUNCTION__, [&] {
       _boundObjectRegistry->add(object.ptrUid(), object);
     });
   }
 
-  void DirectDispatchRegistry::unregisterDestination(const RemoteObject& object) BOOST_NOEXCEPT
+  void DirectDispatchRegistry::unregisterRecipient(const RemoteObject& object) BOOST_NOEXCEPT
   {
     invokeLogOnError(__FUNCTION__, [&] {
       _remoteObjectRegistry->remove(object.remotePtrUid());
     });
   }
 
-  void DirectDispatchRegistry::unregisterDestination(const BoundObject & object) BOOST_NOEXCEPT
+  void DirectDispatchRegistry::unregisterRecipient(const BoundObject & object) BOOST_NOEXCEPT
   {
     invokeLogOnError(__FUNCTION__, [&] {
       _boundObjectRegistry->remove(object.ptrUid());
@@ -124,15 +124,15 @@ namespace qi {
   bool DirectDispatchRegistry::dispatchMessage(Message& message, const MessageSocketPtr& socket) const BOOST_NOEXCEPT
   {
     return invokeLogOnError(__FUNCTION__, [&] {
-      QI_ASSERT_FALSE(message.destinationUID()); // Keep this assert to detect this situation when developing.
-      if(message.destinationUID()) // We still implement a predictable behavior to avoid random crashes in the end product.
+      QI_ASSERT_FALSE(message.recipientUid()); // Keep this assert to detect this situation when developing.
+      if(message.recipientUid()) // We still implement a predictable behavior to avoid random crashes in the end product.
         return false;
 
       const auto id = extractPtrUid(message);
       if(!id)
         return false;
-      message.setDestinationId(id);
-      QI_ASSERT_TRUE(message.destinationUID());
+      message.setRecipientUid(id);
+      QI_ASSERT_TRUE(message.recipientUid());
 
       qiLogDebug() << "Direct dispatch in " << this << " : message id:" << message.id() << " for " << id;
       bool success = dispatchMessageToObject(id.get(), message, *_boundObjectRegistry.synchronize(), socket);

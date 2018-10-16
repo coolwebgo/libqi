@@ -36,13 +36,13 @@ namespace qi
     {
       if (detail::canBeDirectlyDispatched(msg, socket))
       {
-        const auto maybeDestinationUid = msg.destinationUID();
-        QI_ASSERT_TRUE(maybeDestinationUid); // TODO: replace by ka::empty once available
-        const auto destinationUid = maybeDestinationUid.get();
-        Buffer destinationIDBuffer;
-        destinationIDBuffer.write(begin(destinationUid), size(destinationUid));
+        const auto maybeRecipientUid = msg.recipientUid();
+        QI_ASSERT_TRUE(maybeRecipientUid); // TODO: replace by ka::empty once available
+        const auto recipientUid = maybeRecipientUid.get();
+        Buffer recipientUidBuffer;
+        recipientUidBuffer.write(begin(recipientUid), size(recipientUid));
         auto msgBuffer = msg.extractBuffer();
-        msgBuffer.addSubBuffer(std::move(destinationIDBuffer));
+        msgBuffer.addSubBuffer(std::move(recipientUidBuffer));
         msg.setBuffer(std::move(msgBuffer));
       }
     }

@@ -402,7 +402,7 @@ namespace qi { namespace sock {
             auto dataBuffer = _msg.extractBuffer();
             dataBuffer.clear();
             _msg.setBuffer(std::move(dataBuffer));
-            _msg.setDestinationId(boost::none);
+            _msg.setRecipientUid(boost::none);
             return {&_msg}; // We reuse the message memory to receive the next message.
           }
           return {};

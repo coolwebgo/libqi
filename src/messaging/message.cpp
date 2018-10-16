@@ -119,7 +119,7 @@ namespace qi
        << "id = " << msg.id() << ", "
        << "vers = " << msg.version() << ", "
        << "type = " << qi::Message::typeToString(msg.type()) << ", "
-       << "destination PtrUid = " << msg.destinationUID() << ", ";
+       << "recipient PtrUid = " << msg.recipientUid() << ", ";
 
     os << "service = ";
     if (msg.service() == qi::Message::Service_ServiceDirectory)

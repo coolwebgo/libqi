@@ -17,7 +17,7 @@ namespace qi {
 
   static AnyReference forwardEvent(const GenericFunctionParameters& params,
                                    unsigned int service, unsigned int object,
-                                   PtrUid destination,
+                                   PtrUid recipientUid,
                                    unsigned int event, Signature sig,
                                    MessageSocketPtr client,
                                    boost::weak_ptr<ObjectHost> context,
@@ -77,7 +77,7 @@ namespace qi {
     msg.setFunction(event);
     msg.setType(Message::Type_Event);
     msg.setObject(object);
-    msg.setDestinationId(destination);
+    msg.setRecipientUid(recipientUid);
     client->send(std::move(msg));
     return AnyReference();
   }
@@ -244,7 +244,7 @@ namespace qi {
       qiLogDebug() << this << " ServiceBoundObject::onMessage : " << msg;
 
       if (msg.object() > _objectId
-      && (!msg.destinationUID() || msg.destinationUID().get() != this->ptrUid())
+      && (!msg.recipientUid() || msg.recipientUid().get() != this->ptrUid())
       )
       {
         qiLogDebug() << "Passing message to children";

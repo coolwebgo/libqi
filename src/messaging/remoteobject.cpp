@@ -88,7 +88,7 @@ namespace qi {
     if (socket == sock)
       return;
     if (sock) {
-      sock->directDispatchRegistry().unregisterDestination(*this);
+      sock->directDispatchRegistry().unregisterRecipient(*this);
       close("Socket invalidated");
     }
 
@@ -102,7 +102,7 @@ namespace qi {
       // if we are a sub-object.
       // We have no mechanism to bounce objectHost registration
       // to a 'parent' object.
-      socket->directDispatchRegistry().registerDestination(*this);
+      socket->directDispatchRegistry().registerRecipient(*this);
       _linkMessageDispatcher = socket->messagePendingConnect(_service,
         MessageSocket::ALL_OBJECTS,
         track(boost::bind<void>(&RemoteObject::onMessagePending, this, _1), this));
@@ -159,7 +159,7 @@ namespace qi {
     };
 
     if (msg.object() != _object
-    && (!msg.destinationUID() || msg.destinationUID().get() != ptrUid())
+    && (!msg.recipientUid() || msg.recipientUid().get() != ptrUid())
     )
     {
       passToHost();
@@ -365,7 +365,7 @@ namespace qi {
     msg.setService(_service);
     msg.setObject(_object);
     msg.setFunction(method);
-    msg.setDestinationId(_self.ptrUid());
+    msg.setRecipientUid(_self.ptrUid());
 
     qiLogDebug() << "[RemoteObject{" << this << " | " << remotePtrUid() << "}]"
       << " READY TO SEND CALL :" << msg;
@@ -604,7 +604,7 @@ namespace qi {
     { // Do not hold any lock when invoking signals.
         qiLogDebug() << "[RemoteObject{"<< this << " | " << remotePtrUid() << "}]"
           << "Removing connection from socket " << (void*)socket.get();
-        socket->directDispatchRegistry().unregisterDestination(*this);
+        socket->directDispatchRegistry().unregisterRecipient(*this);
         socket->messagePendingDisconnect(_service, MessageSocket::ALL_OBJECTS, _linkMessageDispatcher);
 
         if (!fromSignal)

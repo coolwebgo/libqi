@@ -102,12 +102,12 @@ namespace qi {
   }
 
   /* Provides "direct message dispatch" mechanism to be used on reception of network messages.
-     "Direct message dispatch" refers to passing a network message directly to the destination,
+     "Direct message dispatch" refers to passing a network message directly to the recipient,
      which is an object handling network interfacing for another object
      (@see RemoteObject and BoundObject).
 
      Registered objects will be receive messages dispatched through `dispatchMessage` function
-     if they match the destination identifier in the message.
+     if they match the recipient identifier in the message.
 
   */
   class DirectDispatchRegistry
@@ -124,10 +124,10 @@ namespace qi {
     DirectDispatchRegistry(const DirectDispatchRegistry&) = delete;
     DirectDispatchRegistry& operator=(const DirectDispatchRegistry&) = delete;
 
-    void registerDestination(RemoteObject& object) BOOST_NOEXCEPT;
-    void registerDestination(BoundObject & object) BOOST_NOEXCEPT;
-    void unregisterDestination(const RemoteObject& object) BOOST_NOEXCEPT;
-    void unregisterDestination(const BoundObject & object) BOOST_NOEXCEPT;
+    void registerRecipient(RemoteObject& object) BOOST_NOEXCEPT;
+    void registerRecipient(BoundObject & object) BOOST_NOEXCEPT;
+    void unregisterRecipient(const RemoteObject& object) BOOST_NOEXCEPT;
+    void unregisterRecipient(const BoundObject & object) BOOST_NOEXCEPT;
 
     RemoteObjectPtr findRemoteObject(const PtrUid& id) const BOOST_NOEXCEPT;
     BoundObjectPtr findBoundObject(const PtrUid& id) const BOOST_NOEXCEPT;

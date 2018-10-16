@@ -40,7 +40,7 @@ namespace qi {
     for (auto&& boundObjectSlot : _boundObjects)
     {
       auto& object = boundObjectSlot.second;
-      socket->directDispatchRegistry().registerDestination(*object);
+      socket->directDispatchRegistry().registerRecipient(*object);
     }
   }
 
@@ -50,7 +50,7 @@ namespace qi {
     for (auto&& boundObjectSlot : _boundObjects)
     {
       auto& object = boundObjectSlot.second;
-      socket->directDispatchRegistry().unregisterDestination(*object);
+      socket->directDispatchRegistry().unregisterRecipient(*object);
     }
   }
 
@@ -60,7 +60,7 @@ namespace qi {
     for (auto&& socketSubscribersSlot : _subscribers)
     {
       auto&& socket = socketSubscribersSlot.first;
-      socket->directDispatchRegistry().registerDestination(object);
+      socket->directDispatchRegistry().registerRecipient(object);
     }
   }
 
@@ -70,7 +70,7 @@ namespace qi {
     for (auto&& socketSubscribersSlot : _subscribers)
     {
       auto&& socket = socketSubscribersSlot.first;
-      socket->directDispatchRegistry().unregisterDestination(object);
+      socket->directDispatchRegistry().unregisterRecipient(object);
     }
   }
 
