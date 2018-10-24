@@ -8,6 +8,7 @@
 #define _QI_MESSAGING_STREAMCONTEXT_HPP_
 
 #include <map>
+#include <boost/optional.hpp>
 #include <qi/api.hpp>
 #include <qi/anyvalue.hpp>
 #include <qi/type/metaobject.hpp>
@@ -82,6 +83,8 @@ public:
   /// Fetch remote capability (default: from local cache).
   virtual boost::optional<AnyValue> remoteCapability(const std::string& key) const;
 
+  void setRemoteCapability(const CapabilityMap& remoteCaps);
+
   bool hasReceivedRemoteCapabilities() const;
 
   template<typename T>
@@ -123,10 +126,11 @@ public:
   const DirectDispatchRegistry& directDispatchRegistry() const BOOST_NOEXCEPT
   { return _directDispatchRegistry; }
 
-protected:
+private:
   qi::Atomic<int> _cacheNextId;
   // Protects all storage
   mutable boost::mutex  _contextMutex;
+  mutable boost::optional<bool> _isDirectDispatchAllowed;
   DirectDispatchRegistry _directDispatchRegistry;
   CapabilityMap _remoteCapabilityMap; // remote capabilities we received
   CapabilityMap _localCapabilityMap; // memory of what we advertisedk
@@ -135,6 +139,8 @@ protected:
   using ReceiveMetaObjectCache = std::map<unsigned int, MetaObject>;
   SendMetaObjectCache _sendMetaObjectCache;
   ReceiveMetaObjectCache _receiveMetaObjectCache;
+
+  void invalidateCapabilityCache() const;
 };
 
 template<typename T>

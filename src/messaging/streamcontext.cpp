@@ -35,11 +35,13 @@ StreamContext::~StreamContext()
 void StreamContext::advertiseCapability(const std::string& key, const AnyValue& value)
 {
   _localCapabilityMap[key] = value;
+  invalidateCapabilityCache();
 }
 
 void StreamContext::advertiseCapabilities(const CapabilityMap &map)
 {
   _localCapabilityMap.insert(map.begin(), map.end());
+  invalidateCapabilityCache();
 }
 
 boost::optional<AnyValue> StreamContext::remoteCapability(const std::string& key) const
@@ -50,6 +52,18 @@ boost::optional<AnyValue> StreamContext::remoteCapability(const std::string& key
     return it->second;
   else
     return {};
+}
+
+void StreamContext::setRemoteCapability(const CapabilityMap& remoteCaps)
+{
+  boost::mutex::scoped_lock lock(_contextMutex);
+  _remoteCapabilityMap.insert(remoteCaps.begin(), remoteCaps.end()); // TODO: consider just overwriting the previous content
+  invalidateCapabilityCache();
+}
+
+void StreamContext::invalidateCapabilityCache() const
+{
+  _isDirectDispatchAllowed = boost::none;
 }
 
 bool StreamContext::hasReceivedRemoteCapabilities() const
@@ -155,10 +169,14 @@ const CapabilityMap& StreamContext::defaultCapabilities()
 
 bool StreamContext::isDirectDispatchAllowed() const
 {
-  // TODO: cache the value? maybe not, as it might change at runtime :P
-  const bool hasObjectPtrUidCapability = sharedCapability(capabilityname::objectPtrUid, false);
-  const bool hasDirectMessageRoutageCapability = sharedCapability(capabilityname::directMessageDispatch, false);
-  return hasObjectPtrUidCapability && hasDirectMessageRoutageCapability;
+  if (_isDirectDispatchAllowed == boost::none)
+  {
+    const bool hasObjectPtrUidCapability = sharedCapability(capabilityname::objectPtrUid, false);
+    const bool hasDirectMessageRoutageCapability = sharedCapability(capabilityname::directMessageDispatch, false);
+    _isDirectDispatchAllowed = hasObjectPtrUidCapability && hasDirectMessageRoutageCapability;
+  }
+
+  return _isDirectDispatchAllowed.value();
 }
 
 }

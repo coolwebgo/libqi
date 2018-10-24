@@ -542,8 +542,7 @@ namespace qi {
       cmRef = msg.value(typeOf<CapabilityMap>()->signature(), shared_from_this());
       CapabilityMap cm = cmRef.to<CapabilityMap>();
       cmRef.destroy();
-      boost::mutex::scoped_lock lock(_contextMutex);
-      _remoteCapabilityMap.insert(cm.begin(), cm.end());
+      setRemoteCapability(cm);
     }
     catch (const std::runtime_error& e)
     {
@@ -565,7 +564,7 @@ namespace qi {
     // Direct Message Dispatch Capability: if possible, send the message directly to its identified destination.
     if (detail::canBeDirectlyDispatched(msg, *this))
     {
-      dispatched = _directDispatchRegistry.dispatchMessage(msg, this->shared_from_this());
+      dispatched = directDispatchRegistry().dispatchMessage(msg, this->shared_from_this());
     }
 
     if (!dispatched)
