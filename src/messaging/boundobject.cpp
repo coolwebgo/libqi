@@ -17,7 +17,7 @@ namespace qi {
 
   static AnyReference forwardEvent(const GenericFunctionParameters& params,
                                    unsigned int service, unsigned int object,
-                                   PtrUid recipientUid,
+                                   ObjectUid recipientUid,
                                    unsigned int event, Signature sig,
                                    MessageSocketPtr client,
                                    boost::weak_ptr<ObjectHost> context,
@@ -155,7 +155,7 @@ namespace qi {
     if (!ms)
       throw std::runtime_error("No such signal");
     QI_ASSERT(_currentSocket);
-    AnyFunction mc = AnyFunction::fromDynamicFunction(boost::bind(&forwardEvent, _1, _serviceId, _objectId, _object.ptrUid(), eventId, ms->parametersSignature(), _currentSocket, weakPtr(), ""));
+    AnyFunction mc = AnyFunction::fromDynamicFunction(boost::bind(&forwardEvent, _1, _serviceId, _objectId, _object.uid(), eventId, ms->parametersSignature(), _currentSocket, weakPtr(), ""));
     qi::Future<SignalLink> linking = _object.connect(eventId, mc);
     auto& linkEntry = _links[_currentSocket][remoteSignalLinkId];
     linkEntry = RemoteSignalLink(linking, eventId);
@@ -171,7 +171,7 @@ namespace qi {
     if (!ms)
       throw std::runtime_error("No such signal");
     QI_ASSERT(_currentSocket);
-    AnyFunction mc = AnyFunction::fromDynamicFunction(boost::bind(&forwardEvent, _1, _serviceId, _objectId, _object.ptrUid(), eventId, ms->parametersSignature(), _currentSocket, weakPtr(), signature));
+    AnyFunction mc = AnyFunction::fromDynamicFunction(boost::bind(&forwardEvent, _1, _serviceId, _objectId, _object.uid(), eventId, ms->parametersSignature(), _currentSocket, weakPtr(), signature));
     qi::Future<SignalLink> linking = _object.connect(eventId, mc);
     auto& linkEntry = _links[_currentSocket][remoteSignalLinkId];
     linkEntry = RemoteSignalLink(linking, eventId);
@@ -244,7 +244,7 @@ namespace qi {
       qiLogDebug() << this << " ServiceBoundObject::onMessage : " << msg;
 
       if (msg.object() > _objectId
-      && (!msg.recipientUid() || msg.recipientUid().get() != this->ptrUid())
+      && (!msg.recipientUid() || msg.recipientUid().get() != this->uid())
       )
       {
         qiLogDebug() << "Passing message to children";

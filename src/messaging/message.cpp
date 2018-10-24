@@ -119,7 +119,7 @@ namespace qi
        << "id = " << msg.id() << ", "
        << "vers = " << msg.version() << ", "
        << "type = " << qi::Message::typeToString(msg.type()) << ", "
-       << "recipient PtrUid = " << msg.recipientUid() << ", ";
+       << "recipient ObjectUid = " << msg.recipientUid() << ", ";
 
     os << "service = ";
     if (msg.service() == qi::Message::Service_ServiceDirectory)
@@ -211,20 +211,20 @@ namespace qi
         ObjectSerializationInfo res;
         res.serviceId = sid;
         res.objectId = nullObjectId;
-        res.objectPtrUid = os::ptrUid(nullptr);
+        res.objectUid = os::ptrUid(nullptr);
         return res;
       }
 
       const unsigned int oid = host->nextId();
-      qiLogDebug() << "Serializing " << object.ptrUid() << " through stream-context " << strCtxt;
+      qiLogDebug() << "Serializing " << object.uid() << " through stream-context " << strCtxt;
       ServiceBoundObject* sbo = nullptr;
       { // Make sure no other serialization is registering the same object in parallel.
         auto boundObjectsRegistry = strCtxt->directDispatchRegistry().lockBoundObjectRegistry();
-        const auto foundBO = boundObjectsRegistry->find(object.ptrUid()); // Must live to the end of the scope.
+        const auto foundBO = boundObjectsRegistry->find(object.uid()); // Must live to the end of the scope.
 
         if (foundBO)
         { // Reuse the bound object already existing.
-          qiLogDebug() << "Serializing " << object.ptrUid() << " through stream-context " << strCtxt << " : already registered, recycling ==== ";
+          qiLogDebug() << "Serializing " << object.uid() << " through stream-context " << strCtxt << " : already registered, recycling ==== ";
           sbo = static_cast<ServiceBoundObject*>(foundBO.get());
         }
         else
@@ -244,7 +244,7 @@ namespace qi
       res.metaObject = sbo->metaObject(oid);
       res.serviceId = sid;
       res.objectId = oid;
-      res.objectPtrUid = object.ptrUid();
+      res.objectUid = object.uid();
       return res;
     }
 
@@ -282,16 +282,16 @@ namespace qi
       auto remoteObjectRegistry = context->directDispatchRegistry().lockRemoteObjectRegistry();
 
       // Avoid creating another RemoteObject if it already exists for this socket.
-      if (osi.objectPtrUid)
+      if (osi.objectUid)
       {
-        if (auto registeredRemoteObject = remoteObjectRegistry->find(osi.objectPtrUid.get()))
+        if (auto registeredRemoteObject = remoteObjectRegistry->find(*osi.objectUid))
         {
-          qiLogDebug() << "Deserializing " << osi.objectPtrUid.get() << " : already registered, recycling";
+          qiLogDebug() << "Deserializing " << *osi.objectUid << " : already registered, recycling";
           return registeredRemoteObject->owner();
         }
         else
         {
-          qiLogDebug() << "Deserializing " << osi.objectPtrUid.get() << " : new object";
+          qiLogDebug() << "Deserializing " << *osi.objectUid << " : new object";
         }
       }
       else
@@ -300,11 +300,11 @@ namespace qi
       }
 
       qiLogDebug() << "Creating unregistered object " << osi.serviceId << '/' << osi.objectId
-                   << " ptruid = '" << (osi.objectPtrUid ? *osi.objectPtrUid : PtrUid{}) << "' on "
+                   << " ptruid = '" << (osi.objectUid ? *osi.objectUid : ObjectUid{}) << "' on "
                    << context.get();
       // RemoteObject's constructor will do the registration of the object in the direct dispatch registry.
-      RemoteObject* ro = new RemoteObject(osi.serviceId, osi.objectId, osi.metaObject, context, osi.objectPtrUid);
-      AnyObject o = makeDynamicAnyObject(ro, true, osi.objectPtrUid, &onProxyLost);
+      RemoteObject* ro = new RemoteObject(osi.serviceId, osi.objectId, osi.metaObject, context, osi.objectUid);
+      AnyObject o = makeDynamicAnyObject(ro, true, osi.objectUid, &onProxyLost);
       qiLogDebug() << "New object is " << o.asGenericObject() << "on ro " << ro;
       QI_ASSERT(o);
       ro->setOwner(o);

@@ -54,7 +54,7 @@ namespace qi {
     virtual ~BoundObject() {}
     virtual void onMessage(const qi::Message &msg, MessageSocketPtr socket) = 0;
     virtual void onSocketDisconnected(qi::MessageSocketPtr socket, std::string error) = 0;
-    virtual PtrUid ptrUid() const = 0;
+    virtual ObjectUid uid() const = 0;
     virtual BoundObjectWeakPtr getWeakPtr() = 0;
   };
 
@@ -125,7 +125,7 @@ namespace qi {
     //BoundObject Interface
     void onMessage(const qi::Message &msg, MessageSocketPtr socket) override;
     void onSocketDisconnected(qi::MessageSocketPtr socket, std::string error) override;
-    PtrUid ptrUid() const override { return _object.ptrUid(); }
+    ObjectUid uid() const override { return _object.uid(); }
 
     using MessageId = unsigned int;
     void cancelCall(MessageSocketPtr origSocket, const Message& cancelMessage, MessageId origMsgId);

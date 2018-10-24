@@ -12,7 +12,7 @@
 #include <boost/weak_ptr.hpp>
 
 #include <ka/memory.hpp>
-#include <qi/ptruid.hpp>
+#include <qi/objectuid.hpp>
 #include <qi/log.hpp>
 #include <qi/strand.hpp>
 
@@ -35,7 +35,7 @@ namespace qi {
     bool canBeDirectlyDispatched(const Message& message, const StreamContext& context);
 
     // Used to register and later find instances of types representing an object exposed online.
-    // Relies on PtrUid to identify and find objects.
+    // Relies on ObjectUid to identify and find objects.
     // @tparam NetworkObject Requires:
     //     With NetworkObject x, Message m, SocketPtr s, the following is valid:
     //          boost::weak_ptr<NetworkObject> p = x.getWeakPtr();
@@ -47,33 +47,33 @@ namespace qi {
       using WeakPtr = boost::weak_ptr<NetworkObject>;
       using SharedPtr = boost::shared_ptr<NetworkObject>;
 
-      // Record a weak pointer to the object associated to the provided id.
-      // Preconditions: this->find(id).get() == nullptr || this->find(id).get() == &object
-      // Postconditions: this->find(id).get() == &object
-      void add(const PtrUid& id, NetworkObject& object)
+      // Record a weak pointer to the object associated to the provided uid.
+      // Preconditions: this->find(uid).get() == nullptr || this->find(uid).get() == &object
+      // Postconditions: this->find(uid).get() == &object
+      void add(const ObjectUid& uid, NetworkObject& object)
       {
         const auto weakObject = object.getWeakPtr();
 
         bool insertionSucceeded = false;
         auto insertedIt = registry.end();
-        std::tie(insertedIt, insertionSucceeded) = registry.emplace(std::make_pair(id, weakObject));
+        std::tie(insertedIt, insertionSucceeded) = registry.emplace(std::make_pair(uid, weakObject));
 
-        QI_ASSERT_TRUE(insertionSucceeded || insertedIt->second.lock().get() == &object); // Only one object should be registered by PtrUid.
-        qiLogDebug(logCategory) << "Registered in " << this << " : { " << id << " }"
+        QI_ASSERT_TRUE(insertionSucceeded || insertedIt->second.lock().get() == &object); // Only one object should be registered by ObjectUid.
+        qiLogDebug(logCategory) << "Registered in " << this << " : { " << uid << " }"
           << " AS " << typeid(object).name() << " "
           << (insertionSucceeded ? "" : " - skipped");
       }
 
-      // Postconditions: this->find(id).get() == nullptr
-      void remove(const PtrUid& id)
+      // Postconditions: this->find(uid).get() == nullptr
+      void remove(const ObjectUid& id)
       {
         qiLogDebug(logCategory) << "Unregistered remoteobject from " << this << " : { " << id << " }";
         registry.erase(id);
       }
 
-      // Postconditions: With `SharedPtr object` and `this->add(id, *object)` the following is true:
-      //     object == this->find(id)
-      SharedPtr find(const PtrUid& id) const
+      // Postconditions: With `SharedPtr object` and `this->add(uid, *object)` the following is true:
+      //     object == this->find(uid)
+      SharedPtr find(const ObjectUid& id) const
       {
         const auto find_it = registry.find(id);
         if (find_it != end(registry))
@@ -85,7 +85,7 @@ namespace qi {
       }
 
     private:
-      using Registry = std::unordered_map<PtrUid, WeakPtr>;
+      using Registry = std::unordered_map<ObjectUid, WeakPtr>;
       mutable Registry registry;
 
       SharedPtr acquireOrRemove(typename Registry::iterator it) const
@@ -129,8 +129,8 @@ namespace qi {
     void unregisterRecipient(const RemoteObject& object) BOOST_NOEXCEPT;
     void unregisterRecipient(const BoundObject & object) BOOST_NOEXCEPT;
 
-    RemoteObjectPtr findRemoteObject(const PtrUid& id) const BOOST_NOEXCEPT;
-    BoundObjectPtr findBoundObject(const PtrUid& id) const BOOST_NOEXCEPT;
+    RemoteObjectPtr findRemoteObject(const ObjectUid& id) const BOOST_NOEXCEPT;
+    BoundObjectPtr findBoundObject(const ObjectUid& id) const BOOST_NOEXCEPT;
 
     // Requires:
     //  - message.destinationUid() is empty

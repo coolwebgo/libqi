@@ -38,7 +38,7 @@ struct RemotePerformanceService
     const auto endTime = high_resolution_clock::now();
     const auto discussDuration = endTime - startTime;
 
-    qiLogInfo("TEST") << "Test Call " << totalCallCount << " call " << " ID{" << o.ptrUid() << "} : "
+    qiLogInfo("TEST") << "Test Call " << totalCallCount << " call " << " UID{" << o.uid() << "} : "
                       << duration_cast<milliseconds>(discussDuration).count() << " ms ("
                       << duration_cast<nanoseconds>(discussDuration).count() << " ns)"
                       ;

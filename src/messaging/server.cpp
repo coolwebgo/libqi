@@ -83,10 +83,10 @@ namespace qi {
     // If the object is not registered with this id, it might have been
     // registered previously with another id.
     // To avoid making different bound objects for the same real object,
-    // we have to look for bound objects having the same PtrUid
+    // we have to look for bound objects having the same ObjectUid
     // as it identifies the real object being exposed
     // (at least for this process).
-    if (!unsafeFindBoundObject(id) && !unsafeFindBoundObject(obj.ptrUid()))
+    if (!unsafeFindBoundObject(id) && !unsafeFindBoundObject(obj.uid()))
     {
         // The object have never been registered here before:
         // we need to create a new bound object associated to it.
@@ -106,10 +106,10 @@ namespace qi {
     // If the object is not registered with this id, it might have been
     // registered previously with another id.
     // To avoid making different bound objects for the same real object,
-    // we have to look for bound objects having the same PtrUid
+    // we have to look for bound objects having the same ObjectUid
     // as it identifies the real object being exposed
     // (at least for this process).
-    if (!unsafeFindBoundObject(id) && !unsafeFindBoundObject(obj->ptrUid()))
+    if (!unsafeFindBoundObject(id) && !unsafeFindBoundObject(obj->uid()))
     {
       // The object have never been registered here before, register it.
       unsafeStoreBoundObject(id, std::move(obj));
@@ -128,11 +128,11 @@ namespace qi {
       return {};
   }
 
-  qi::BoundAnyObject Server::unsafeFindBoundObject(const PtrUid& ptruid)
+  qi::BoundAnyObject Server::unsafeFindBoundObject(const ObjectUid& ptruid)
   {
     for (auto&& slot : _boundObjects)
     {
-      if (slot.second->ptrUid() == ptruid)
+      if (slot.second->uid() == ptruid)
         return slot.second;
     }
     return {};

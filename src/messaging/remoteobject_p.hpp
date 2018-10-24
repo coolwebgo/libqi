@@ -41,7 +41,7 @@ namespace qi {
     //deprecated
     RemoteObject(unsigned int service, unsigned int object, qi::MetaObject metaObject,
       qi::MessageSocketPtr socket = qi::MessageSocketPtr(),
-      boost::optional<PtrUid> ptrUid = boost::none);
+      boost::optional<ObjectUid> uid = boost::none);
     ~RemoteObject();
 
     unsigned int nextId() { return ++_nextId; }
@@ -57,7 +57,7 @@ namespace qi {
 
     AnyObject owner() const { return _owner.lock(); }
     void setOwner(AnyObject owner) { _owner = owner; }
-    PtrUid remotePtrUid() const { return _self.ptrUid(); }
+    ObjectUid remoteObjectUid() const { return _self.uid(); }
 
     auto getWeakPtr() -> decltype(this->weakPtr()) { return weakPtr(); }
 

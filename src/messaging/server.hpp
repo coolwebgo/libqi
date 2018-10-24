@@ -105,7 +105,7 @@ namespace qi {
 
     void unsafeStoreBoundObject(unsigned int id, BoundAnyObject obj);
     BoundAnyObject unsafeFindBoundObject(unsigned int id);
-    BoundAnyObject unsafeFindBoundObject(const PtrUid& ptruid);
+    BoundAnyObject unsafeFindBoundObject(const ObjectUid& ptruid);
 
   };
 }

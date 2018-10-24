@@ -45,68 +45,68 @@ namespace qi {
   void DirectDispatchRegistry::registerRecipient(RemoteObject& object) BOOST_NOEXCEPT
   {
     invokeLogOnError(__FUNCTION__, [&]{
-      _remoteObjectRegistry->add(object.remotePtrUid(), object);
+      _remoteObjectRegistry->add(object.remoteObjectUid(), object);
     });
   }
 
   void DirectDispatchRegistry::registerRecipient(BoundObject & object) BOOST_NOEXCEPT
   {
     invokeLogOnError(__FUNCTION__, [&] {
-      _boundObjectRegistry->add(object.ptrUid(), object);
+      _boundObjectRegistry->add(object.uid(), object);
     });
   }
 
   void DirectDispatchRegistry::unregisterRecipient(const RemoteObject& object) BOOST_NOEXCEPT
   {
     invokeLogOnError(__FUNCTION__, [&] {
-      _remoteObjectRegistry->remove(object.remotePtrUid());
+      _remoteObjectRegistry->remove(object.remoteObjectUid());
     });
   }
 
   void DirectDispatchRegistry::unregisterRecipient(const BoundObject & object) BOOST_NOEXCEPT
   {
     invokeLogOnError(__FUNCTION__, [&] {
-      _boundObjectRegistry->remove(object.ptrUid());
+      _boundObjectRegistry->remove(object.uid());
     });
   }
 
-  RemoteObjectPtr DirectDispatchRegistry::findRemoteObject(const PtrUid& id) const BOOST_NOEXCEPT
+  RemoteObjectPtr DirectDispatchRegistry::findRemoteObject(const ObjectUid& uid) const BOOST_NOEXCEPT
   {
     return invokeLogOnError(__FUNCTION__, [&] {
-      return _remoteObjectRegistry->find(id);
+      return _remoteObjectRegistry->find(uid);
     });
 
   }
 
-  BoundObjectPtr DirectDispatchRegistry::findBoundObject(const PtrUid& id) const BOOST_NOEXCEPT
+  BoundObjectPtr DirectDispatchRegistry::findBoundObject(const ObjectUid& uid) const BOOST_NOEXCEPT
   {
     return invokeLogOnError(__FUNCTION__, [&] {
-      return _boundObjectRegistry->find(id);
+      return _boundObjectRegistry->find(uid);
     });
   }
 
 
   namespace
   {
-    boost::optional<PtrUid> extractPtrUid(const Message& message)
+    boost::optional<ObjectUid> extractObjectUid(const Message& message)
     {
-      PtrUid id;
+      ObjectUid uid;
       const auto& buffer = message.buffer();
-      if (buffer.size() < size(id))
+      if (buffer.size() < size(uid))
       {
         return {};
       }
       // Here we assume that the last thing in the buffer is the uid.
-      const size_t ptrUidOffset = buffer.size() - size(id);
-      const auto readCount = buffer.read(begin(id), ptrUidOffset, size(id));
-      QI_ASSERT_TRUE(readCount == size(id));
-      QI_ASSERT_FALSE(id == qi::PtrUid{});
-      return id;
+      const size_t uidOffset = buffer.size() - size(uid);
+      const auto readCount = buffer.read(begin(uid), uidOffset, size(uid));
+      QI_ASSERT_TRUE(readCount == size(uid));
+      QI_ASSERT_FALSE(uid == qi::ObjectUid{});
+      return uid;
     }
 
 
     template<class NetworkObject>
-    bool dispatchMessageToObject(const PtrUid& id, const Message& message,
+    bool dispatchMessageToObject(const ObjectUid& id, const Message& message,
                   const detail::ObjectNetworkInterfaceRegistry<NetworkObject>& registry,
                   const MessageSocketPtr& socket)
     {
@@ -128,16 +128,16 @@ namespace qi {
       if(message.recipientUid()) // We still implement a predictable behavior to avoid random crashes in the end product.
         return false;
 
-      const auto id = extractPtrUid(message);
-      if(!id)
+      const auto uid = extractObjectUid(message);
+      if(!uid)
         return false;
-      message.setRecipientUid(id);
+      message.setRecipientUid(uid);
       QI_ASSERT_TRUE(message.recipientUid());
 
-      qiLogDebug() << "Direct dispatch in " << this << " : message id:" << message.id() << " for " << id;
-      bool success = dispatchMessageToObject(id.get(), message, *_boundObjectRegistry.synchronize(), socket);
+      qiLogDebug() << "Direct dispatch in " << this << " : message id:" << message.id() << " for " << uid;
+      bool success = dispatchMessageToObject(uid.get(), message, *_boundObjectRegistry.synchronize(), socket);
       if(!success)
-        success = dispatchMessageToObject(id.get(), message, *_remoteObjectRegistry.synchronize(), socket);
+        success = dispatchMessageToObject(uid.get(), message, *_remoteObjectRegistry.synchronize(), socket);
 
       if (!success)
       {

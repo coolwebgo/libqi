@@ -772,7 +772,7 @@ namespace {
     const int MAX = 1000;
 
     qi::AnyObject myObject = boost::make_shared<MyObject>();
-    qiLogInfo() << "==== myObject = { " << myObject.ptrUid() << "} ====";
+    qiLogInfo() << "==== myObject = { " << myObject.uid() << "} ====";
     s.call<void>("setObject", myObject);
     const auto test1_ms = s.call<long>("measureCallDuration", "foo");
 

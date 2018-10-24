@@ -133,6 +133,7 @@ set(QI_H qi/detail/async.hxx
          qi/messaging/sock/send.hpp
          qi/messaging/sock/traits.hpp
          qi/ptruid.hpp
+         qi/objectuid.hpp
          qi/tag.hpp
          qi/uuid.hpp)
 

@@ -32,7 +32,7 @@ namespace qi {
                    unsigned int serviceId,
                    unsigned int objectId,
                    unsigned int functionId,
-                   boost::optional<PtrUid> recipientUid = boost::none
+                   boost::optional<ObjectUid> recipientUid = boost::none
                    )
       : messageId(messageId)
       , serviceId(serviceId)
@@ -45,7 +45,7 @@ namespace qi {
     unsigned int serviceId = 0;
     unsigned int objectId = 0;
     unsigned int functionId = 0;
-    boost::optional<PtrUid> recipientUid; // Extension used if Capability DirectMessageDispatch is allowed.
+    boost::optional<ObjectUid> recipientUid; // Extension used if Capability DirectMessageDispatch is allowed.
     KA_GENERATE_FRIEND_REGULAR_OPS_5(MessageAddress, messageId, serviceId, objectId, functionId, recipientUid)
   };
 
@@ -338,14 +338,14 @@ namespace qi {
           && _recipientUid == b._recipientUid;
     }
 
-    boost::optional<PtrUid> recipientUid() const { return _recipientUid; }
-    void setRecipientUid(const boost::optional<PtrUid>& id) { _recipientUid = id; }
+    boost::optional<ObjectUid> recipientUid() const { return _recipientUid; }
+    void setRecipientUid(const boost::optional<ObjectUid>& id) { _recipientUid = id; }
 
   private:
     Buffer _buffer;
     std::string signature;
     Header _header;
-    boost::optional<PtrUid> _recipientUid;
+    boost::optional<ObjectUid> _recipientUid;
 
     void encodeBinary(const qi::AutoAnyReference& ref,
                       SerializeObjectCallback onObject,
