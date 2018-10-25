@@ -542,7 +542,7 @@ namespace qi {
       cmRef = msg.value(typeOf<CapabilityMap>()->signature(), shared_from_this());
       CapabilityMap cm = cmRef.to<CapabilityMap>();
       cmRef.destroy();
-      setRemoteCapability(cm);
+      updateRemoteCapabilities(cm);
     }
     catch (const std::runtime_error& e)
     {

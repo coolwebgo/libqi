@@ -305,7 +305,8 @@ namespace qi {
       case AuthProvider::State_Cont:
         if (*first)
         {
-          authResult.insert(socket->localCapabilities().begin(), socket->localCapabilities().end());
+          const auto localCapabilities = socket->localCapabilities();
+          authResult.insert(localCapabilities.begin(), localCapabilities.end());
           *first = false;
         }
         reply.setValue(authResult, cmsig);
@@ -343,7 +344,8 @@ namespace qi {
     authResult[AuthProvider::State_Key] = AnyValue::from<unsigned int>(AuthProvider::State_Done);
     if (*first)
     {
-      authResult.insert(socket->localCapabilities().begin(), socket->localCapabilities().end());
+      const auto localCapabilities = socket->localCapabilities();
+      authResult.insert(localCapabilities.begin(), localCapabilities.end());
       *first = false;
     }
     std::string cmsig = typeOf<CapabilityMap>()->signature().toString();

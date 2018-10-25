@@ -5,6 +5,8 @@
 
 #include <boost/algorithm/string.hpp>
 
+#include <mutex>
+
 #include "streamcontext.hpp"
 
 #include "remoteobject_p.hpp"
@@ -22,6 +24,21 @@ namespace qi
     char const * const directMessageDispatch  = "DirectMessageDispatch";
   }
 
+  namespace {
+    // Adds or update values in a map with values from another map.
+    // If an exception is thrown, the state of 'map' is undetermined.
+    // Requires: Map and AnotherMap matches the AssociativeContainer concept.
+    // Requires: newValues.empty() || map[newValues.begin()->first] = newValues.begin()->second
+    template<class Map, class AnotherMap>
+    void updateMap(Map& map, const AnotherMap& newValues)
+    {
+      // TODO: replace par std::map::merge() in C++17
+      for (auto& slot : newValues)
+      {
+        map[slot.first] = slot.second;
+      }
+    }
+  }
 
 StreamContext::StreamContext()
 {
@@ -34,19 +51,21 @@ StreamContext::~StreamContext()
 
 void StreamContext::advertiseCapability(const std::string& key, const AnyValue& value)
 {
+  Mutex::scoped_lock lock(_contextMutex);
   _localCapabilityMap[key] = value;
   invalidateCapabilityCache();
 }
 
 void StreamContext::advertiseCapabilities(const CapabilityMap &map)
 {
-  _localCapabilityMap.insert(map.begin(), map.end());
+  Mutex::scoped_lock lock(_contextMutex);
+  updateMap(_localCapabilityMap, map);
   invalidateCapabilityCache();
 }
 
 boost::optional<AnyValue> StreamContext::remoteCapability(const std::string& key) const
 {
-  boost::mutex::scoped_lock loc(_contextMutex);
+  Mutex::scoped_lock loc(_contextMutex);
   const auto it = _remoteCapabilityMap.find(key);
   if (it != _remoteCapabilityMap.end())
     return it->second;
@@ -54,38 +73,36 @@ boost::optional<AnyValue> StreamContext::remoteCapability(const std::string& key
     return {};
 }
 
-void StreamContext::setRemoteCapability(const CapabilityMap& remoteCaps)
+void StreamContext::updateRemoteCapabilities(const CapabilityMap& remoteCaps)
 {
-  boost::mutex::scoped_lock lock(_contextMutex);
-  _remoteCapabilityMap.insert(remoteCaps.begin(), remoteCaps.end()); // TODO: consider just overwriting the previous content
+  Mutex::scoped_lock lock(_contextMutex);
+  updateMap(_remoteCapabilityMap, remoteCaps);
   invalidateCapabilityCache();
 }
 
-void StreamContext::invalidateCapabilityCache() const
-{
-  _isDirectDispatchAllowed = boost::none;
-}
 
 bool StreamContext::hasReceivedRemoteCapabilities() const
 {
-  boost::mutex::scoped_lock lock(_contextMutex);
+  Mutex::scoped_lock lock(_contextMutex);
   return _remoteCapabilityMap.size() != 0;
 }
 
 
-const CapabilityMap& StreamContext::remoteCapabilities() const
+CapabilityMap StreamContext::remoteCapabilities() const
 {
+  Mutex::scoped_lock loc(_contextMutex);
   return _remoteCapabilityMap;
 }
 
-const CapabilityMap& StreamContext::localCapabilities() const
+CapabilityMap StreamContext::localCapabilities() const
 {
+  Mutex::scoped_lock loc(_contextMutex);
   return _localCapabilityMap;
 }
 
 boost::optional<AnyValue> StreamContext::localCapability(const std::string& key) const
 {
-  boost::mutex::scoped_lock loc(_contextMutex);
+  Mutex::scoped_lock loc(_contextMutex);
   const auto it = _localCapabilityMap.find(key);
   if (it != _localCapabilityMap.end())
     return it->second;
@@ -96,7 +113,7 @@ boost::optional<AnyValue> StreamContext::localCapability(const std::string& key)
 MetaObject StreamContext::receiveCacheGet(unsigned int uid) const
 {
   // Return by value, as map is by value.
-  boost::mutex::scoped_lock lock(_contextMutex);
+  Mutex::scoped_lock lock(_contextMutex);
   const auto it = _receiveMetaObjectCache.find(uid);
   if (it == _receiveMetaObjectCache.end())
     throw std::runtime_error("MetaObject not found in cache");
@@ -105,13 +122,13 @@ MetaObject StreamContext::receiveCacheGet(unsigned int uid) const
 
 void StreamContext::receiveCacheSet(unsigned int uid, const MetaObject& mo)
 {
-  boost::mutex::scoped_lock lock(_contextMutex);
+  Mutex::scoped_lock lock(_contextMutex);
   _receiveMetaObjectCache[uid] = mo;
 }
 
 std::pair<unsigned int, bool> StreamContext::sendCacheSet(const MetaObject& mo)
 {
-  boost::mutex::scoped_lock lock(_contextMutex);
+  Mutex::scoped_lock lock(_contextMutex);
   SendMetaObjectCache::iterator it = _sendMetaObjectCache.find(mo);
   if (it == _sendMetaObjectCache.end())
   {
@@ -123,52 +140,56 @@ std::pair<unsigned int, bool> StreamContext::sendCacheSet(const MetaObject& mo)
     return std::make_pair(it->second, false);
 }
 
-static CapabilityMap* _defaultCapabilities = nullptr;
-static void initCapabilities()
+namespace
 {
-  static const CapabilityMap defaultCaps =
-  { { capabilityname::clientServerSocket   , AnyValue::from(true)  }
-  , { capabilityname::messageFlags         , AnyValue::from(true)  }
-  , { capabilityname::metaObjectCache      , AnyValue::from(false) }
-  , { capabilityname::remoteCancelableCalls, AnyValue::from(true)  }
-  , { capabilityname::objectPtrUid         , AnyValue::from(true)  }
-  , { capabilityname::directMessageDispatch , AnyValue::from(true)  }
-  };
-
-  _defaultCapabilities = new CapabilityMap(defaultCaps);
-
-  // Process override from environment
-  std::string capstring = qi::os::getenv("QI_TRANSPORT_CAPABILITIES");
-  std::vector<std::string> caps;
-  boost::algorithm::split(caps, capstring, boost::algorithm::is_any_of(":"));
-  for (unsigned i=0; i<caps.size(); ++i)
+  CapabilityMap applyCapabilitiesFromEnv(CapabilityMap capabilities)
   {
-    const std::string& c = caps[i];
-    if (c.empty())
-      continue;
-    size_t p = c.find_first_of("=");
-    if (p == std::string::npos)
+    std::string capstring = qi::os::getenv("QI_TRANSPORT_CAPABILITIES");
+    std::vector<std::string> capsNames;
+    boost::algorithm::split(capsNames, capstring, boost::algorithm::is_any_of(":"));
+    for (unsigned i = 0; i < capsNames.size(); ++i)
     {
-      if (c[0] == '-')
-        _defaultCapabilities->erase(c.substr(1, c.npos));
-      else if (c[0] == '+')
-        (*_defaultCapabilities)[c.substr(1, c.npos)] = AnyValue::from(true);
+      const std::string& c = capsNames[i];
+      if (c.empty())
+        continue;
+      size_t p = c.find_first_of("=");
+      if (p == std::string::npos)
+      {
+        if (c[0] == '-')
+          capabilities.erase(c.substr(1, c.npos));
+        else if (c[0] == '+')
+          capabilities[c.substr(1, c.npos)] = AnyValue::from(true);
+        else
+          capabilities[c] = AnyValue::from(true);
+      }
       else
-        (*_defaultCapabilities)[c] = AnyValue::from(true);
+        capabilities[c.substr(0, p)] = AnyValue::from(c.substr(p + 1, c.npos));
     }
-    else
-      (*_defaultCapabilities)[c.substr(0, p)] = AnyValue::from(c.substr(p+1, c.npos));
+    return capabilities;
   }
 }
 
 const CapabilityMap& StreamContext::defaultCapabilities()
 {
-  QI_ONCE(initCapabilities());
-  return *_defaultCapabilities;
+  static const CapabilityMap defaultCapabilities = applyCapabilitiesFromEnv(
+    { { capabilityname::clientServerSocket    , AnyValue::from(true)  }
+    , { capabilityname::messageFlags          , AnyValue::from(true)  }
+    , { capabilityname::metaObjectCache       , AnyValue::from(false) }
+    , { capabilityname::remoteCancelableCalls , AnyValue::from(true)  }
+    , { capabilityname::objectPtrUid          , AnyValue::from(true)  }
+    , { capabilityname::directMessageDispatch , AnyValue::from(true)  }
+    });
+  return defaultCapabilities;
 }
 
+void StreamContext::invalidateCapabilityCache() const
+{
+  Mutex::scoped_lock lock(_contextMutex);
+  _isDirectDispatchAllowed = boost::none;
+}
 bool StreamContext::isDirectDispatchAllowed() const
 {
+  Mutex::scoped_lock lock(_contextMutex);
   if (_isDirectDispatchAllowed == boost::none)
   {
     const bool hasObjectPtrUidCapability = sharedCapability(capabilityname::objectPtrUid, false);

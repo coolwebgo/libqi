@@ -71,33 +71,33 @@ public:
   StreamContext();
   virtual ~StreamContext();
 
-  /// Set or update a local capability, and immediately advertise to the other end
-  virtual void advertiseCapability(const std::string& key, const AnyValue& value);
+  /// Set or update a local capabilities.
+  void advertiseCapability(const std::string& key, const AnyValue& value);
 
-  /** Set or update and advertise a set of local capabilities.
-   * Implementer must either update _localCapabilityMap or overload localCapability().
-   *
-   */
-  virtual void advertiseCapabilities(const CapabilityMap& map);
+  /// Set or update and advertise a set of local capabilities.
+  void advertiseCapabilities(const CapabilityMap& map);
+
+  /// Set or update capabilities from the other end.
+  void updateRemoteCapabilities(const CapabilityMap& remoteCaps);
 
   /// Fetch remote capability (default: from local cache).
-  virtual boost::optional<AnyValue> remoteCapability(const std::string& key) const;
-
-  void setRemoteCapability(const CapabilityMap& remoteCaps);
-
-  bool hasReceivedRemoteCapabilities() const;
+  boost::optional<AnyValue> remoteCapability(const std::string& key) const;
 
   template<typename T>
   T remoteCapability(const std::string& key, const T& defaultValue) const;
 
-  const CapabilityMap& remoteCapabilities() const;
-  const CapabilityMap& localCapabilities() const;
-
   /// Fetch back what we advertised to the other end (default: local cache)
-  virtual boost::optional<AnyValue> localCapability(const std::string& key) const;
+  boost::optional<AnyValue> localCapability(const std::string& key) const;
 
   template<typename T>
   T localCapability(const std::string& key, const T& defaultValue) const;
+
+
+  bool hasReceivedRemoteCapabilities() const;
+
+
+  CapabilityMap remoteCapabilities() const;
+  CapabilityMap localCapabilities() const;
 
   /** Return a value based on shared capability.
   * If not present on one side, returns void.
@@ -129,11 +129,15 @@ public:
 private:
   qi::Atomic<int> _cacheNextId;
   // Protects all storage
-  mutable boost::mutex  _contextMutex;
+
   mutable boost::optional<bool> _isDirectDispatchAllowed;
   DirectDispatchRegistry _directDispatchRegistry;
+
   CapabilityMap _remoteCapabilityMap; // remote capabilities we received
-  CapabilityMap _localCapabilityMap; // memory of what we advertisedk
+  CapabilityMap _localCapabilityMap; // memory of what we advertised
+
+  using Mutex = boost::recursive_mutex;
+  mutable Mutex _contextMutex;
 
   using SendMetaObjectCache = std::map<MetaObject, unsigned int>;
   using ReceiveMetaObjectCache = std::map<unsigned int, MetaObject>;
