@@ -68,12 +68,25 @@ if(QI_WITH_TESTS)
     "test_event_remote.cpp"
     "test_event_remote_connect.cpp"
     "test_messaging_with_sessionpair.cpp" # main
-    "test_send_object.cpp"
-    "test_send_object_identification.cpp"
     "test_service.cpp"
     "test_session.cpp"
     "test_session_harder.cpp"
 
+    DEPENDS
+    qi
+    qitestutils
+    testsession
+
+    TIMEOUT 300
+  )
+
+  qimessaging_create_session_test(
+    test_messaging_objects_with_sessionpair
+
+    SRC
+    "test_send_object.cpp"
+    "test_send_object_identification.cpp"
+    "test_messaging_with_sessionpair.cpp" # main
     DEPENDS
     qi
     qitestutils
